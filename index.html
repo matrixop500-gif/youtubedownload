@@ -1,3 +1,727 @@
+
+Claude finished the response
+
+
+
+
+Adding Context of Capsule: YouTube video downloading... 👀
+1:45 PM
+I can help you continue building your YouTube video downloader app! Based on your capsule context, you've got a solid foundation with Flask + yt-dlp + Tkinter.
+
+What would you like to do next?
+
+are bhai website ban gyi hai par mujeh ab vo localhost nhi public karni hai
+
+1:46 PM
+Got it! You want to deploy your app publicly instead of running it on localhost.
+
+Here are your best options:
+
+Q: Kahan deploy karna chahte ho?
+A: Railway (free, easy)
+
+1:46 PM
+Perfect choice! Railway pe deploy karna bahut easy hai. Let me walk you through the complete process.
+
+🚂 Railway pe Deploy karna
+Step 1 — Required Files banao
+Tujhe apne project me 3 files add karni hogi:
+
+requirements.txt
+
+txt
+flask
+yt-dlp
+flask-cors
+gunicorn
+Procfile (no extension)
+
+web: gunicorn app:app
+runtime.txt
+
+python-3.11.0
+Step 2 — FFmpeg ka issue ⚠️
+Railway pe FFmpeg by default nahi hota. Iske liye nixpacks.toml file banao:
+
+nixpacks.toml
+
+toml
+[
+phases.setup
+]
+nixPkgs = ["ffmpeg"]
+Yeh Railway ko batata hai ki FFmpeg install karo automatically.
+
+Step 3 — Railway pe Deploy
+bash
+# 1. Railway CLI install karo
+npm install -g @railway/cli
+
+# 2. Login karo
+railway login
+
+# 3. Project initialize karo
+railway init
+
+# 4. Deploy karo
+railway up
+Ya phir GitHub se directly deploy kar sakte ho:
+
+Code GitHub pe push karo
+railway.app pe jao
+New Project → Deploy from GitHub repo select karo
+Repo select karo → automatic deploy ho jaega ✅
+Step 4 — Public URL milega
+Deploy hone ke baad Railway automatically ek URL deta hai like:
+
+https://your-app-name.up.railway.app
+⚠️ Ek important baat
+YouTube downloaders ko public hosting pe TOS issues ho sakte hain. Railway suspend kar sakta hai agar heavy usage ho. Safer options:
+
+Personal use ke liye Ngrok better hai
+Ya apna VPS lo (DigitalOcean $4/month)
+Kya tera app.py ka code share karega? Main check kar sakta hoon ki koi changes needed hain production ke liye! 🔧
+
+are mujhe free hosting karni hai 
+
+from flask import Flask, request, jsonify, send_file
+import yt_dlp
+import os
+
+# FFmpeg path
+os.environ["PATH"] += os.pathsep + r"C:\Users\Yuvraj\Downloads\ffmpeg-master-latest-win64-gpl-shared\ffmpeg-master-latest-win64-gpl-shared\bin"
+
+app = Flask(__name__)
+
+DOWNLOAD_FOLDER = "./downloads"
+os.makedirs(DOWNLOAD_FOLDER, exist_ok=True)
+
+@app.route("/")
+def home():
+    return send_file("index.html")
+
+@app.route("/info", methods=["POST"])
+def get_video():
+    data = request.get_json()
+    url = data.get('url')
+
+    if not url:
+        return jsonify({'error': 'Please enter the URL'}), 400
+    
+    try:
+        with yt_dlp.YoutubeDL() as ydl:
+            info = ydl.extract_info(url, download=False)
+
+        return jsonify({
+            'title': info.get('title'),
+            'thumbnail': info.get('thumbnail'),
+            'duration': info.get('duration_string'),
+        })
+    
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+    
+@app.route("/download", methods=["POST"])
+def download_video():
+    data = request.get_json()
+    url = data.get('url')
+    quality = data.get('quality', '720')
+
+    if quality == 'mp3':
+        ydl_opts = {
+            'format': 'bestaudio/best',
+            'outtmpl': f'{DOWNLOAD_FOLDER}/%(title)s.%(ext)s',
+            'postprocessors': [{
+                'key': 'FFmpegExtractAudio',
+                'preferredcodec': 'mp3',
+            }]
+        }
+    else:
+        ydl_opts = {
+            'format': f'bestvideo[height<={quality}][vcodec^=avc]+bestaudio/best',
+            'outtmpl': f'{DOWNLOAD_FOLDER}/%(title)s.%(ext)s',
+            'merge_output_format': 'mp4',   
+        }
+
+    try:
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(url, download=True)
+            filename = ydl.prepare_filename(info)
+            return send_file(filename, as_attachment=True)
+    
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+    
+if __name__ == "__main__":
+    app.run(debug=True, port=5000)
+Show more
+1:51 PM
+Bhai, seedha baat karta hoon — YouTube downloader ko free hosting pe chalana almost impossible hai kyunki:
+
+🚫 Render, Railway, Vercel — sab YouTube downloaders ban kar dete hain (TOS violation)
+🚫 Storage issue — free tiers me disk space nahi hota downloads ke liye
+🚫 yt-dlp block — hosting providers YouTube traffic block kar dete hain
+✅ Sabse Badhiya Solution — File Server pe Save Mat Karo
+File locally save karne ki zaroorat hi nahi! Video seedha user ke browser me stream karo. Isse:
+
+No storage needed
+Render/Railway pe kaam karega (thodi der ke liye)
+Fast download
+Tera updated app.py:
+
+python
+from flask import Flask, request, jsonify, send_file, Response, stream_with_context
+import yt_dlp
+import os
+import io
+import requests
+
+app = Flask(__name__)
+
+@app.route("/")
+def home():
+    return send_file("index.html")
+
+@app.route("/info", methods=["POST"])
+def get_video():
+    data = request.get_json()
+    url = data.get('url')
+
+    if not url:
+        return jsonify({'error': 'Please enter the URL'}), 400
+    
+    try:
+        with yt_dlp.YoutubeDL({'quiet': True}) as ydl:
+            info = ydl.extract_info(url, download=False)
+
+        return jsonify({
+            'title': info.get('title'),
+            'thumbnail': info.get('thumbnail'),
+            'duration': info.get('duration_string'),
+        })
+    
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route("/download", methods=["POST"])
+def download_video():
+    data = request.get_json()
+    url = data.get('url')
+    quality = data.get('quality', '720')
+
+    try:
+        # Get direct download URL (no file saving!)
+        if quality == 'mp3':
+            ydl_opts = {
+                'format': 'bestaudio/best',
+                'quiet': True,
+            }
+            ext = 'mp3'
+        else:
+            ydl_opts = {
+                'format': f'best[height<={quality}][ext=mp4]/best[ext=mp4]/best',
+                'quiet': True,
+            }
+            ext = 'mp4'
+
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(url, download=False)
+            video_url = info['url']
+            title = info.get('title', 'video').replace('/', '-')
+
+        # Stream the video directly to user
+        def generate():
+            with requests.get(video_url, stream=True) as r:
+                for chunk in r.iter_content(chunk_size=8192):
+                    yield chunk
+
+        return Response(
+            stream_with_context(generate()),
+            headers={
+                'Content-Disposition': f'attachment; filename="{title}.{ext}"',
+                'Content-Type': 'video/mp4' if ext == 'mp4' else 'audio/mpeg',
+            }
+        )
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+if __name__ == "__main__":
+    app.run(debug=True, port=5000)
+📦 Ye Files bana aur Render pe deploy kar
+requirements.txt
+
+txt
+flask
+yt-dlp
+flask-cors
+gunicorn
+requests
+Procfile
+
+web: gunicorn app:app
+render.yaml (FFmpeg ke liye)
+
+yaml
+services:
+  - type: web
+    name: yt-downloader
+    env: python
+    buildCommand: "apt-get install -y ffmpeg && pip install -r requirements.txt"
+    startCommand: "gunicorn app:app"
+🚀 Render pe Deploy Steps
+Code GitHub pe push karo
+render.com pe free account banao
+New → Web Service → Connect GitHub repo
+Free tier select karo → Deploy!
+⚡ Honest warning: Render free tier pe YouTube kabhi kabhi block ho sakta hai. Agar hota hai toh Koyeb try karo — same steps, thoda zyada lenient hai.
+
+Kya GitHub pe code already hai? 🤔
+
+nahi bhai dalu kya?
+
+1:54 PM
+Haan bhai, GitHub pe daal! Lekin pehle ek kaam kar —
+
+🚨 Ye Line Hata app.py se
+python
+# Ye line HATAO — ye sirf tera local PC ka path hai
+os.environ["PATH"] += os.pathsep + r"C:\Users\Yuvraj\Downloads\ffmpeg-master-latest-win64-gpl-shared\..."
+Server pe ye path exist nahi karta, error aayega.
+
+📁 Tera Final Project Structure
+yt-downloader/
+├── app.py          ✅ (updated wala jo maine diya)
+├── index.html      ✅ (tera existing frontend)
+├── requirements.txt
+├── Procfile
+└── render.yaml
+🐙 GitHub Pe Daalne Ke Steps
+bash
+# 1. Git initialize karo project folder me
+git init
+
+# 2. Saari files add karo
+git add .
+
+# 3. Commit karo
+git commit -m "first commit"
+
+# 4. GitHub pe new repo banao → phir ye commands
+git remote add origin https://github.com/TERA_USERNAME/yt-downloader.git
+git branch -M main
+git push -u origin main
+💡 GitHub pe repo kaise banaye?
+
+github.com → New Repository → Name do → Create → bas!
+Bata bhai — Git installed hai tere PC pe? Agar nahi hai toh pehle wo install karte hain! 😄
+
+1780907323979_image.png
+1:58 PM
+Repo ban gayi bhai! 🎉 Ab bas ye commands apne project folder me run kar:
+
+🖥️ Terminal/CMD me ye karo
+Pehle apne project folder me ja:
+
+bash
+cd C:\Users\Yuvraj\path\to\your\project
+Phir ek-ek karke ye commands run karo:
+
+bash
+git init
+git add .
+git commit -m "first commit"
+git branch -M main
+git remote add origin https://github.com/matrixop500-gif/youtubedownload.git
+git push -u origin main
+💡 Tera repo URL already dikh raha hai screenshot me: https://github.com/matrixop500-gif/youtubedownload.git
+
+⚠️ Push karne se pehle check karo
+Teri project folder me ye saari files hain?
+
+✅ app.py          (updated wala — bina FFmpeg local path ke)
+✅ index.html
+✅ requirements.txt
+✅ Procfile
+✅ render.yaml
+Agar requirements.txt, Procfile, ya render.yaml nahi banaye abhi tak — bata, main content de deta hoon copy-paste ke liye! 😄
+
+abe mujhe cmd se nahi karna aise hi  batade github sew
+
+2:02 PM
+Bilkul bhai! GitHub se directly upload karte hain! 😄
+
+📁 GitHub pe Files Upload karna
+Step 1 — Apne repo pe ja aur "uploading an existing file" pe click kar
+
+Show Image
+
+Step 2 — Apni saari files drag & drop karo ya "choose your files" se select karo:
+
+✅ app.py
+✅ index.html
+✅ requirements.txt
+✅ Procfile
+✅ render.yaml
+Step 3 — Neeche "Commit changes" button dabao → Done! 🎉
+
+📄 Pehle ye files bana le (agar nahi bani)
+requirements.txt — ye content daalo:
+
+flask
+yt-dlp
+flask-cors
+gunicorn
+requests
+Procfile (koi extension nahi) — ye content daalo:
+
+web: gunicorn app:app
+render.yaml — ye content daalo:
+
+yaml
+services:
+  - type: web
+    name: yt-downloader
+    env: python
+    buildCommand: "apt-get install -y ffmpeg && pip install -r requirements.txt"
+    startCommand: "gunicorn app:app"
+Saari files upload ho jayein toh bata — Render pe deploy karte hain! 🚀
+
+Screenshot 2026-06-08 140711.png
+Screenshot 2026-06-08 140716.png
+2:07 PM
+Bhai ekdum sahi ho gaya! 🎉 GitHub pe saari files upload ho gayi hain aur Render bhi open hai!
+
+🚀 Ab Render pe Connect karo
+Problem — Render me sirf midnight-vibes-bot dikh raha hai, youtubedownload nahi!
+
+Fix — "Configure" button pe click karke GitHub permissions update karo:
+
+Render me search box ke paas "Credentials (1)" dropdown pe click karo
+"Configure" ya "Manage access" pe click karo
+GitHub pe youtubedownload repo ko allow karo
+Wapas Render pe aao — ab repo dikh jaayegi ✅
+Phir:
+
+youtubedownload repo select karo
+Next page pe ye settings karo:
+Name: yt-downloader (kuch bhi)
+Region: Singapore (India ke paas)
+Branch: main
+Runtime: Python
+Build Command: apt-get install -y ffmpeg && pip install -r requirements.txt
+Start Command: gunicorn yт_app:app
+Free tier select karo
+Deploy! 🚀
+⚠️ Ek cheez — tera file name yт_app.py hai, app.py nahi! Toh Start Command me gunicorn yt_app:app likhna hai.
+
+Credentials configure karne ke baad repo dikh gayi? 😄
+
+kaha hai lode configure?
+
+2:09 PM
+Bhai screenshot me dekh! 😄
+
+Ye kar —
+"Credentials (1)" ke paas dropdown arrow pe click kar 👇
+
+Wahan "Configure" option aayega — us pe click kar, GitHub page khulega aur wahan youtubedownload repo ko allow karna hai.
+
+Agar nahi dikh raha toh doosra tarika —
+
+"Public Git Repository" tab pe click kar (Git Provider ke paas hi hai) aur seedha repo URL paste kar do:
+
+https://github.com/matrixop500-gif/youtubedownload
+Ye sabse easy hai! Try kar bhai 🎯
+
+1780908055960_image.png
+abe ssle aha hai cresidential 1
+
+2:11 PM
+Bhai tu GitHub pe hai abhi! 😄 Render pe ja wapas!
+
+Ye kar —
+Render Dashboard tab pe click kar (tera browser me already khula hai!)
+Wahan "Credentials (1)" dropdown pe click kar
+Neeche "+ Add credentials" ya "Configure GitHub App" dikhega
+Ya seedha ye kaam kar — Public Git Repository tab use kar:
+
+Render pe ja → "Public Git Repository" tab pe click kar
+Ye URL paste kar:
+https://github.com/matrixop500-gif/youtubedownload
+Continue dabao — ho jaayega! ✅
+Ye sabse fast tarika hai bhai! 🚀
+
+1780908193094_image.png
+2:13 PM
+Bhai ekdum sahi jagah pe aa gaya! 🎉
+
+Bas ye 2 kaam kar:
+1. Free select kar — already selected dikh raha hai (purple highlight) ✅
+
+2. Neeche scroll kar aur "Deploy Web Service" button dabao! 🚀
+
+Environment Variables me kuch nahi daalna — khali chhod do!
+
+Bas Deploy dabao aur 2-3 minute wait karo — tera public URL mil jaayega! 😄
+
+1780908296517_image.png
+2:14 PM
+Error clear dikh raha hai bhai! 👀
+
+ModuleNotFoundError: No module named 'app'
+Problem — Procfile galat hai!
+Tera file app.py nahi, yt_app.py hai! Toh Procfile update karna padega.
+
+Fix — GitHub pe Procfile edit karo
+GitHub pe ja → youtubedownload repo open karo
+procfile pe click karo
+pencil icon (Edit) pe click karo
+Content change karo:
+❌ Abhi hai:
+
+web: gunicorn app:app
+✅ Ye karo:
+
+web: gunicorn yt_app:app
+"Commit changes" dabao
+Render automatically redeploy karega! 🚀
+Bas itna hi fix chahiye — baaki sab sahi hai! Kar bhai jaldi 😄
+
+nhi hua render par
+
+2:17 PM
+Bhai log full dikhao — screenshot lo ya Logs me ja ke poora error copy karo!
+
+Render pe "Logs" pe click kar (left sidebar me hai) aur jo red error dikh raha hai wo copy karke yahan paste kar! 🔍
+
+1780908467243_image.png
+2:17 PM
+Bhai same error aa raha hai — No module named 'app'
+
+Matlab Procfile update nahi hua! GitHub pe check karte hain —
+
+Ye kar abhi 👇
+GitHub tab pe ja (tera browser me khula hai)
+procfile file pe click kar
+Dekh andar kya likha hai — app hai ya yt_app?
+Agar abhi bhi app likha hai toh:
+
+Pencil ✏️ icon pe click kar
+Content bilkul ye kar:
+web: gunicorn yt_app:app
+Green "Commit changes" button dabao
+Phir Render pe aa aur "Manual Deploy" → "Deploy latest commit" dabao!
+
+Screenshot bhej Procfile ka — dekh leta hoon kya likha hai! 👀
+
+1780908497706_image.png
+2:18 PM
+Procfile sahi hai web: gunicorn yt_app:app ✅
+
+Problem ye hai ki Render ne naya commit pick nahi kiya! Manual deploy karna padega.
+
+Render pe ja aur ye kar 👇
+Render tab pe ja
+Top right me "Manual Deploy" button dhundh
+"Deploy latest commit" pe click kar
+Agar Manual Deploy nahi dikh raha toh Settings me ja aur "Build & Deploy" section me "Trigger Deploy" button dabao! 🚀
+
+1780908603705_image.png
+2:20 PM
+Bhai same error aa raha hai — No module named 'app'
+
+Matlab Render Procfile ignore kar raha hai aur render.yaml ki startCommand use kar raha hai!
+
+Fix — render.yaml update karo GitHub pe
+GitHub pe ja → render.yaml pe click kar → Edit karo:
+
+❌ Abhi hoga:
+
+yaml
+startCommand: "gunicorn app:app"
+✅ Ye karo:
+
+yaml
+services:
+  - type: web
+    name: yt-downloader
+    env: python
+    buildCommand: "apt-get install -y ffmpeg && pip install -r requirements.txt"
+    startCommand: "gunicorn yt_app:app"
+Commit karo → Render pe Manual Deploy dabao! 🚀
+
+Screenshot 2026-06-08 142341.png
+Screenshot 2026-06-08 142336.png
+2:24 PM
+Bhai dekh — Image 2 me clearly dikh raha hai:
+
+==> Running 'gunicorn app:app'   ← YE PROBLEM HAI!
+Render render.yaml/Procfile ignore karke apni setting use kar raha hai! Render Dashboard ki Settings me hardcoded hai app:app.
+
+Fix — Render Settings me ja 👇
+Render pe left sidebar me "Settings" pe click kar
+"Build & Deploy" section dhundh
+"Start Command" field me dekh — gunicorn app:app likha hoga
+Use change kar:
+gunicorn yt_app:app
+Save karo → Manual Deploy karo
+Yahi asli problem thi bhai — Render apni dashboard settings ko priority deta hai! 🎯
+
+1780909002491_image.png
+2:26 PM
+Bhai Settings mil gayi! Ab neeche scroll kar — "Build" section dikh raha hai neeche 👇
+
+Wahan "Start Command" field milega — us mein gunicorn yt_app:app likhna hai!
+
+Scroll kar aur screenshot bhej! 🎯
+
+1780909034115_image.png
+2:27 PM
+Dikh raha hai! Build Command galat hai — FFmpeg nahi install ho raha!
+
+2 cheezein fix karni hain — aur scroll karo neeche bhi!
+1. Build Command Edit karo → pencil icon pe click kar aur ye likhao:
+
+apt-get install -y ffmpeg && pip install -r requirements.txt
+2. Aur neeche scroll karo — "Start Command" field milega wahan gunicorn yt_app:app likhna hai!
+
+Dono save karo phir deploy! 🚀
+
+1780909170217_image.png
+2:29 PM
+Naya error dikh raha hai bhai! Progress ho rahi hai 😄
+
+E: Permission denied - apt-get root access nahi hai!
+Fix — Build Command change karo
+Render pe apt-get ke liye root access nahi milta! FFmpeg alag tarike se install karna padega.
+
+Settings pe ja → Build Command Edit karo → ye likho:
+
+pip install -r requirements.txt
+Aur requirements.txt GitHub pe edit karo — imageio-ffmpeg add karo:
+
+flask
+yt-dlp
+flask-cors
+gunicorn
+requests
+imageio-ffmpeg
+Aur yt_app.py me ye line add karni padegi FFmpeg path ke liye — GitHub pe file edit karo:
+
+python
+import imageio_ffmpeg
+import os
+
+ffmpeg_path = imageio_ffmpeg.get_ffmpeg_exe()
+os.environ["PATH"] += os.pathsep + os.path.dirname(ffmpeg_path)
+Ye 3 jagah changes karo:
+
+✅ requirements.txt — imageio-ffmpeg add karo
+✅ yt_app.py — upar wali 3 lines add karo (FFmpeg local path wali purani line hata do)
+✅ Build Command — sirf pip install -r requirements.txt rakho
+Karo bhai — is baar kaam karega! 🚀
+
+1780909262271_image.png
+kaha add kru
+
+2:31 PM
+Line 1 ke upar — bilkul shuru mein ye add karo 👇
+
+Line 1 pe click kar, Home key dabao, phir Enter se upar ki line banao aur paste karo:
+
+python
+import imageio_ffmpeg
+ffmpeg_path = imageio_ffmpeg.get_ffmpeg_exe()
+import os
+os.environ["PATH"] += os.pathsep + os.path.dirname(ffmpeg_path)
+Aur line 3 pe jo import os already hai use hata do (duplicate ho jaayega).
+
+Final top 4 lines aisi dikhni chahiye:
+
+python
+import imageio_ffmpeg
+ffmpeg_path = imageio_ffmpeg.get_ffmpeg_exe()
+import os
+os.environ["PATH"] += os.pathsep + os.path.dirname(ffmpeg_path)
+from flask import Flask, request, jsonify, send_file
+import yt_dlp
+Phir "Commit changes" dabao! 🚀
+
+1780909341384_image.png
+2:32 PM
+Bilkul sahi hai bhai! ✅ Code ekdum perfect dikh raha hai!
+
+Ab Render pe ja aur Manual Deploy karo — is baar build pass ho jaana chahiye! 🚀
+
+Render → Events → Manual Deploy → Deploy latest commit
+
+Screenshot bhej deploy hone ke baad! 🤞
+
+1780909452734_image.png
+2:34 PM
+🎉 BHAI LIVE HO GAYA!!!
+==> Your service is live 🚀
+==> Available at: https://youtubedownload-gtzf.onrender.com
+✅ Build successful ✅ Running gunicorn yt_app:app ✅ LIVE!
+
+Ja bhai — https://youtubedownload-gtzf.onrender.com pe visit kar aur test karo! 🔥
+
+⚠️ Ek cheez yaad rakh — Free tier pe pehli baar open karne me 50 seconds lag sakte hain (spin up time). Thoda wait karna! 😄
+
+1780909495678_image.png
+2:34 PM
+"Not Found" aa raha hai — matlab server chal raha hai but index.html nahi mil raha!
+
+Problem — send_file("index.html") path galat hai
+GitHub pe yt_app.py edit karo — line 15 change karo:
+
+❌ Abhi:
+
+python
+return send_file("index.html")
+✅ Ye karo:
+
+python
+return send_file(os.path.join(os.path.dirname(__file__), "index.html"))
+Commit karo → Render auto-deploy karega → 2 min baad refresh karo! 🚀
+
+
+<!DOCTYPE html> <html lang="en"> <head> <meta charset="UTF-8"> <meta name="viewport" content="width=device-width, initial-scale=1.0"> <title>YT Downloader</title> <style> * { margin: 0; padding: 0; box-sizing: border-box; } body { background-color
+
+pasted
+
+kar tu hi edit
+
+2:36 PM
+Teri index.html me http://127.0.0.1:5000 hardcoded hai — yahi problem hai! Main fix kar deta hoon! 🔧
+
+
+Viewed a file, created a file, read a file
+Viewed a file, created a file, read a file
+Ye le fixed index.html!
+
+Kya badla:
+
+http://127.0.0.1:5000/info → /info ✅
+http://127.0.0.1:5000/download → /download ✅
+Error handling bhi add kiya ✅
+Ab GitHub pe ja → index.html pe click → Edit → saara content delete kar → ye wala paste kar → Commit! 🚀
+
+
+Index
+Code · HTML 
+
+
+
+
+
+Capsule Hub
+Claude is AI and can make mistakes. Please double-check responses.
+
+
+raw
+Index · HTML
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -48,25 +772,25 @@
 <body>
 <div class="container">
     <h1>YT Downloader</h1>
-
+ 
     <div class="input-section">
         <input type="text" id="url-input" placeholder="Paste YouTube URL here...">
         <button id="fetch-btn">Get Info</button>
     </div>
-
+ 
     <div class="info-section" id="info-section" style="display:none">
         <img id="thumbnail" src="" alt="thumbnail">
         <h2 id="title"></h2>
         <p id="duration"></p>
     </div>
-
+ 
     <div class="quality-section" id="quality-section" style="display:none">
         <button class="quality-btn" data-quality="1080">1080p</button>
         <button class="quality-btn" data-quality="720">720p</button>
         <button class="quality-btn" data-quality="480">480p</button>
         <button class="quality-btn" data-quality="mp3">MP3</button>
     </div>
-
+ 
     <div class="progress-section" id="progress-section" style="display:none">
         <p id="status-text">Downloading...</p>
         <div class="progress-bar">
@@ -74,74 +798,90 @@
         </div>
     </div>
 </div>
-
+ 
 <script>
     const fetchBtn = document.getElementById('fetch-btn');
     const urlInput = document.getElementById('url-input');
-
+ 
+    // Relative URLs - kaam karega localhost pe bhi aur Render pe bhi!
+    const BASE_URL = '';
+ 
     fetchBtn.addEventListener('click', async () => {
         const url = urlInput.value.trim();
-
+ 
         if (!url) {
             alert('Please enter a YouTube URL!');
             return;
         }
-
+ 
         fetchBtn.textContent = 'Loading...';
-
-        const response = await fetch('http://127.0.0.1:5000/info', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ url: url })
-        });
-
-        const data = await response.json();
-
-        if (data.error) {
-            alert('Error: ' + data.error);
-            fetchBtn.textContent = 'Get Info';
-            return;
+ 
+        try {
+            const response = await fetch(BASE_URL + '/info', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ url: url })
+            });
+ 
+            const data = await response.json();
+ 
+            if (data.error) {
+                alert('Error: ' + data.error);
+                fetchBtn.textContent = 'Get Info';
+                return;
+            }
+ 
+            document.getElementById('thumbnail').src = data.thumbnail;
+            document.getElementById('title').textContent = data.title;
+            document.getElementById('duration').textContent = 'Duration: ' + data.duration;
+ 
+            document.getElementById('info-section').style.display = 'flex';
+            document.getElementById('quality-section').style.display = 'flex';
+ 
+        } catch(e) {
+            alert('Server se connect nahi ho paya!');
         }
-
-        document.getElementById('thumbnail').src = data.thumbnail;
-        document.getElementById('title').textContent = data.title;
-        document.getElementById('duration').textContent = 'Duration: ' + data.duration;
-
-        document.getElementById('info-section').style.display = 'flex';
-        document.getElementById('quality-section').style.display = 'flex';
-
+ 
         fetchBtn.textContent = 'Get Info';
     });
-
+ 
     document.querySelectorAll('.quality-btn').forEach(btn => {
         btn.addEventListener('click', async () => {
             const quality = btn.dataset.quality;
             const url = urlInput.value.trim();
-
+ 
             document.getElementById('progress-section').style.display = 'block';
             document.getElementById('status-text').textContent = 'Downloading...';
             document.getElementById('progress-fill').style.width = '50%';
-
-            const response = await fetch('http://127.0.0.1:5000/download', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ url: url, quality: quality })
-            });
-
-            if (response.ok) {
-                const blob = await response.blob();
-                const a = document.createElement('a');
-                a.href = URL.createObjectURL(blob);
-                a.download = quality === 'mp3' ? 'audio.mp3' : 'video.mp4';
-                a.click();
-                document.getElementById('progress-fill').style.width = '100%';
-                document.getElementById('status-text').textContent = 'Download Complete!';
-            } else {
-                document.getElementById('status-text').textContent = 'Error occurred!';
+ 
+            try {
+                const response = await fetch(BASE_URL + '/download', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ url: url, quality: quality })
+                });
+ 
+                if (response.ok) {
+                    const blob = await response.blob();
+                    const a = document.createElement('a');
+                    a.href = URL.createObjectURL(blob);
+                    a.download = quality === 'mp3' ? 'audio.mp3' : 'video.mp4';
+                    a.click();
+                    document.getElementById('progress-fill').style.width = '100%';
+                    document.getElementById('status-text').textContent = 'Download Complete!';
+                } else {
+                    const err = await response.json();
+                    document.getElementById('status-text').textContent = 'Error: ' + (err.error || 'Something went wrong!');
+                }
+            } catch(e) {
+                document.getElementById('status-text').textContent = 'Server error!';
             }
         });
     });
 </script>
-
+ 
 </body>
 </html>
+ 
+
+
