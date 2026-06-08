@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YT Downloader</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background-color: #0f0f0f;
+            color: #ffffff;
+            font-family: Arial, sans-serif;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .container {
+            width: 600px;
+            padding: 40px;
+            background-color: #1a1a1a;
+            border-radius: 12px;
+        }
+        h1 { text-align: center; color: #ff0000; margin-bottom: 30px; }
+        .input-section { display: flex; gap: 10px; margin-bottom: 20px; }
+        input {
+            flex: 1; padding: 12px; border-radius: 8px;
+            border: 1px solid #333; background-color: #2a2a2a;
+            color: #ffffff; font-size: 14px;
+        }
+        button {
+            padding: 12px 20px; background-color: #ff0000;
+            color: white; border: none; border-radius: 8px;
+            cursor: pointer; font-size: 14px;
+        }
+        button:hover { background-color: #cc0000; }
+        .info-section { display: flex; gap: 15px; margin-bottom: 20px; align-items: center; }
+        #thumbnail { width: 120px; border-radius: 8px; }
+        .quality-section { display: flex; gap: 10px; margin-bottom: 20px; }
+        .quality-btn { flex: 1; background-color: #2a2a2a; }
+        .progress-bar { background-color: #2a2a2a; border-radius: 8px; height: 10px; margin-top: 10px; }
+        .progress-fill {
+            height: 10px; background-color: #ff0000;
+            border-radius: 8px; width: 0%; transition: width 0.3s;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>YT Downloader</h1>
+
+    <div class="input-section">
+        <input type="text" id="url-input" placeholder="Paste YouTube URL here...">
+        <button id="fetch-btn">Get Info</button>
+    </div>
+
+    <div class="info-section" id="info-section" style="display:none">
+        <img id="thumbnail" src="" alt="thumbnail">
+        <h2 id="title"></h2>
+        <p id="duration"></p>
+    </div>
+
+    <div class="quality-section" id="quality-section" style="display:none">
+        <button class="quality-btn" data-quality="1080">1080p</button>
+        <button class="quality-btn" data-quality="720">720p</button>
+        <button class="quality-btn" data-quality="480">480p</button>
+        <button class="quality-btn" data-quality="mp3">MP3</button>
+    </div>
+
+    <div class="progress-section" id="progress-section" style="display:none">
+        <p id="status-text">Downloading...</p>
+        <div class="progress-bar">
+            <div class="progress-fill" id="progress-fill"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const fetchBtn = document.getElementById('fetch-btn');
+    const urlInput = document.getElementById('url-input');
+
+    fetchBtn.addEventListener('click', async () => {
+        const url = urlInput.value.trim();
+
+        if (!url) {
+            alert('Please enter a YouTube URL!');
+            return;
+        }
+
+        fetchBtn.textContent = 'Loading...';
+
+        const response = await fetch('http://127.0.0.1:5000/info', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ url: url })
+        });
+
+        const data = await response.json();
+
+        if (data.error) {
+            alert('Error: ' + data.error);
+            fetchBtn.textContent = 'Get Info';
+            return;
+        }
+
+        document.getElementById('thumbnail').src = data.thumbnail;
+        document.getElementById('title').textContent = data.title;
+        document.getElementById('duration').textContent = 'Duration: ' + data.duration;
+
+        document.getElementById('info-section').style.display = 'flex';
+        document.getElementById('quality-section').style.display = 'flex';
+
+        fetchBtn.textContent = 'Get Info';
+    });
+
+    document.querySelectorAll('.quality-btn').forEach(btn => {
+        btn.addEventListener('click', async () => {
+            const quality = btn.dataset.quality;
+            const url = urlInput.value.trim();
+
+            document.getElementById('progress-section').style.display = 'block';
+            document.getElementById('status-text').textContent = 'Downloading...';
+            document.getElementById('progress-fill').style.width = '50%';
+
+            const response = await fetch('http://127.0.0.1:5000/download', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ url: url, quality: quality })
+            });
+
+            if (response.ok) {
+                const blob = await response.blob();
+                const a = document.createElement('a');
+                a.href = URL.createObjectURL(blob);
+                a.download = quality === 'mp3' ? 'audio.mp3' : 'video.mp4';
+                a.click();
+                document.getElementById('progress-fill').style.width = '100%';
+                document.getElementById('status-text').textContent = 'Download Complete!';
+            } else {
+                document.getElementById('status-text').textContent = 'Error occurred!';
+            }
+        });
+    });
+</script>
+
+</body>
+</html>
