@@ -3,4 +3,4 @@ services:
     name: yt-downloader
     env: python
     buildCommand: "apt-get install -y ffmpeg && pip install -r requirements.txt"
-    startCommand: "gunicorn app:app"
+    startCommand: "gunicorn yt_app:app"
