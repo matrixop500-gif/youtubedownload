@@ -45,6 +45,23 @@
             height: 10px; background-color: #ff0000;
             border-radius: 8px; width: 0%; transition: width 0.3s;
         }
+        .footer {
+            margin-top: 30px;
+            border-top: 1px solid #2a2a2a;
+            padding-top: 20px;
+            text-align: center;
+        }
+        .footer p { font-size: 11px; color: #444; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 12px; }
+        .social-links { display: flex; justify-content: center; gap: 12px; }
+        .social-btn {
+            display: flex; align-items: center; gap: 8px;
+            padding: 10px 18px; border-radius: 8px;
+            text-decoration: none; font-size: 13px; font-weight: bold;
+            transition: transform 0.2s, opacity 0.2s;
+        }
+        .social-btn:hover { transform: translateY(-2px); opacity: 0.85; }
+        .instagram-btn { background: linear-gradient(135deg, #f09433, #e6683c, #dc2743, #cc2366, #bc1888); color: white; }
+        .discord-btn { background-color: #5865F2; color: white; }
     </style>
 </head>
 <body>
@@ -53,14 +70,16 @@
     <p class="made-by">made by <span>★ STARBOY</span></p>
 
     <div class="input-section">
-        <input type="text" id="url-input" placeholder="Paste YouTube URL here...">
+        <input type="text" id="url-input" placeholder="Paste video URL here... (YouTube, Instagram, etc.)">
         <button id="fetch-btn">Get Info</button>
     </div>
 
     <div class="info-section" id="info-section" style="display:none">
         <img id="thumbnail" src="" alt="thumbnail">
-        <h2 id="title"></h2>
-        <p id="duration"></p>
+        <div>
+            <h2 id="title"></h2>
+            <p id="duration"></p>
+        </div>
     </div>
 
     <div class="quality-section" id="quality-section" style="display:none">
@@ -76,51 +95,45 @@
             <div class="progress-fill" id="progress-fill"></div>
         </div>
     </div>
+
+    <div class="footer">
+        <p>🌙 join the community</p>
+        <div class="social-links">
+            <a href="https://instagram.com/iblame_starboy" target="_blank" class="social-btn instagram-btn">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="white"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/></svg>
+                @iblame_starboy
+            </a>
+            <a href="https://discord.gg/Y55JUYKm9r" target="_blank" class="social-btn discord-btn">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="white"><path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057.1 18.08.11 18.1.12 18.12a19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03z"/></svg>
+                Midnight Vibes
+            </a>
+        </div>
+    </div>
 </div>
 
 <script>
     const fetchBtn = document.getElementById('fetch-btn');
     const urlInput = document.getElementById('url-input');
-
-    // Relative URLs - kaam karega localhost pe bhi aur Render pe bhi!
     const BASE_URL = '';
 
     fetchBtn.addEventListener('click', async () => {
         const url = urlInput.value.trim();
-
-        if (!url) {
-            alert('Please enter a YouTube URL!');
-            return;
-        }
-
+        if (!url) { alert('Please enter a URL!'); return; }
         fetchBtn.textContent = 'Loading...';
-
         try {
             const response = await fetch(BASE_URL + '/info', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ url: url })
             });
-
             const data = await response.json();
-
-            if (data.error) {
-                alert('Error: ' + data.error);
-                fetchBtn.textContent = 'Get Info';
-                return;
-            }
-
+            if (data.error) { alert('Error: ' + data.error); fetchBtn.textContent = 'Get Info'; return; }
             document.getElementById('thumbnail').src = data.thumbnail;
             document.getElementById('title').textContent = data.title;
             document.getElementById('duration').textContent = 'Duration: ' + data.duration;
-
             document.getElementById('info-section').style.display = 'flex';
             document.getElementById('quality-section').style.display = 'flex';
-
-        } catch(e) {
-            alert('Server se connect nahi ho paya!');
-        }
-
+        } catch(e) { alert('Server se connect nahi ho paya!'); }
         fetchBtn.textContent = 'Get Info';
     });
 
@@ -128,18 +141,15 @@
         btn.addEventListener('click', async () => {
             const quality = btn.dataset.quality;
             const url = urlInput.value.trim();
-
             document.getElementById('progress-section').style.display = 'block';
             document.getElementById('status-text').textContent = 'Downloading...';
             document.getElementById('progress-fill').style.width = '50%';
-
             try {
                 const response = await fetch(BASE_URL + '/download', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ url: url, quality: quality })
                 });
-
                 if (response.ok) {
                     const blob = await response.blob();
                     const a = document.createElement('a');
@@ -147,17 +157,14 @@
                     a.download = quality === 'mp3' ? 'audio.mp3' : 'video.mp4';
                     a.click();
                     document.getElementById('progress-fill').style.width = '100%';
-                    document.getElementById('status-text').textContent = 'Download Complete!';
+                    document.getElementById('status-text').textContent = '✅ Download Complete!';
                 } else {
                     const err = await response.json();
                     document.getElementById('status-text').textContent = 'Error: ' + (err.error || 'Something went wrong!');
                 }
-            } catch(e) {
-                document.getElementById('status-text').textContent = 'Server error!';
-            }
+            } catch(e) { document.getElementById('status-text').textContent = 'Server error!'; }
         });
     });
 </script>
-
 </body>
 </html>
