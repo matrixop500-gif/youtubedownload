@@ -1,6 +1,10 @@
+import imageio_ffmpeg
+ffmpeg_path = imageio_ffmpeg.get_ffmpeg_exe()
+import os
+os.environ["PATH"] += os.pathsep + os.path.dirname(ffmpeg_path)
 from flask import Flask, request, jsonify, send_file
 import yt_dlp
-import os
+
 
 app = Flask(__name__)
 
